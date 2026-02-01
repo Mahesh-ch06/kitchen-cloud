@@ -1,0 +1,16 @@
+project_id = "cvdwveeqfbcorublrsdr"
+
+[functions.register-user]
+verify_jwt = false
+
+[functions.update-order-status]
+verify_jwt = false
+
+[functions.accept-delivery]
+verify_jwt = false
+
+[functions.process-refund]
+verify_jwt = false
+
+[functions.admin-stats]
+verify_jwt = false

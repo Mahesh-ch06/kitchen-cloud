@@ -1,0 +1,297 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Clean light theme with green accent */
+    --background: 210 20% 98%;
+    --foreground: 220 22% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 22% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 22% 12%;
+
+    /* Fresh green primary (#22C55E) */
+    --primary: 142 72% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Soft gray secondary */
+    --secondary: 220 15% 96%;
+    --secondary-foreground: 220 20% 22%;
+
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 12% 46%;
+
+    /* Accent (deeper green) */
+    --accent: 150 64% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Success */
+    --success: 142 72% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 40 92% 52%;
+    --warning-foreground: 220 22% 12%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 90%;
+    --input: 220 14% 90%;
+    --ring: 142 72% 45%;
+
+    --radius: 0.85rem;
+
+    /* Gradient tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(142 72% 45%) 0%, hsl(150 64% 40%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(142 72% 48%) 0%, hsl(150 64% 38%) 100%);
+    --gradient-dark: linear-gradient(135deg, hsl(220 20% 12%) 0%, hsl(220 25% 18%) 100%);
+    
+    /* Shadow tokens */
+    --shadow-soft: 0 2px 10px -2px hsl(220 22% 12% / 0.08);
+    --shadow-medium: 0 8px 24px -6px hsl(220 22% 12% / 0.12);
+    --shadow-strong: 0 14px 38px -10px hsl(220 22% 12% / 0.16);
+    --shadow-glow: 0 6px 30px -6px hsl(142 72% 45% / 0.35);
+
+    /* Sidebar */
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 220 10% 92%;
+    --sidebar-primary: 142 72% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 16%;
+    --sidebar-accent-foreground: 220 10% 92%;
+    --sidebar-border: 220 16% 18%;
+    --sidebar-ring: 142 72% 45%;
+  }
+
+  .dark {
+    --background: 220 20% 8%;
+    --foreground: 220 10% 98%;
+
+    --card: 220 18% 12%;
+    --card-foreground: 220 10% 98%;
+
+    --popover: 220 18% 12%;
+    --popover-foreground: 220 10% 98%;
+
+    --primary: 25 95% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 220 10% 90%;
+
+    --muted: 220 15% 18%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 38 92% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 25 95% 55%;
+
+    --sidebar-background: 220 22% 6%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 25 95% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 18% 14%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 15% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-[var(--shadow-medium)];
+  }
+
+  .glass-nav {
+    @apply bg-background/70 backdrop-blur-2xl border-b border-border/30;
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-dark {
+    background: var(--gradient-dark);
+  }
+
+  .gradient-mesh {
+    background: 
+      radial-gradient(at 40% 20%, hsl(142 72% 45% / 0.16) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsl(150 64% 40% / 0.12) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsl(220 20% 90% / 0.12) 0px, transparent 50%),
+      radial-gradient(at 80% 50%, hsl(142 72% 45% / 0.08) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsl(220 14% 96% / 0.14) 0px, transparent 50%);
+  }
+
+  .dark .gradient-mesh {
+    background: 
+      radial-gradient(at 40% 20%, hsl(142 72% 50% / 0.12) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsl(150 64% 44% / 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsl(220 15% 18% / 0.32) 0px, transparent 50%),
+      radial-gradient(at 80% 50%, hsl(142 72% 50% / 0.06) 0px, transparent 50%);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background: var(--gradient-primary);
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-medium hover:border-primary/30 hover:-translate-y-1;
+  }
+
+  .btn-hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0;
+  }
+
+  .input-focus {
+    @apply transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary/50;
+  }
+
+  .shimmer {
+    @apply relative overflow-hidden;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--primary) / 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+/* Custom Leaflet Map Marker Styles */
+.custom-map-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Safe area support for iOS devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Tailwind utilities for safe areas */
+.pb-safe-area-bottom {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.pb-safe-bottom {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Better touch targets on mobile */
+  input, select, textarea, button {
+    min-height: 44px;
+  }
+  
+  /* Prevent zoom on input focus in iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  textarea {
+    font-size: 16px;
+  }
+}
