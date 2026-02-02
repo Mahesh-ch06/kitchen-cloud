@@ -320,92 +320,142 @@ export function OrderTrackingPage() {
   );
   const showMap = currentStep >= 4 && !isDelivered && hasValidCoordinates;
 
+  const itemsCount = order.order_items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ?? 0;
+  const statusLabel = trackingSteps.find((step) => step.status === order.status)?.label ?? 'In progress';
+  const progressPercent = Math.min(100, (currentStep / (trackingSteps.length - 1)) * 100);
+
   return (
-    <div className="min-h-screen bg-background pb-safe-area-bottom">
-      {/* Header */}
+    <div className="relative min-h-screen bg-background text-foreground pb-safe-area-bottom overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-80">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-amber-500/10" />
+        <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
+      </div>
+
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between max-w-6xl">
           <Link to="/orders" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Orders</span>
+            <span>Back to orders</span>
           </Link>
-          
+
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <ChefHat className="w-5 h-5 text-primary-foreground" />
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <ChefHat className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-bold">CloudKitchen</span>
+            <span className="font-bold">CloudKitchen Track</span>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8 max-w-2xl">
+      <main className="relative container mx-auto px-6 py-8 max-w-6xl">
         <FadeIn>
-          {/* Order Status Header */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 ${
-                isDelivered 
-                  ? 'bg-green-500/20 text-green-600' 
-                  : 'bg-primary/20 text-primary'
-              }`}
-            >
-              {isDelivered ? (
-                <CheckCircle className="w-5 h-5" />
-              ) : (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                >
-                  <Timer className="w-5 h-5" />
-                </motion.div>
-              )}
-              <span className="font-semibold">
-                {isDelivered ? 'Delivered!' : `ETA: ${estimatedTime}`}
-              </span>
-            </motion.div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2 border border-primary/20 shadow-xl shadow-primary/5">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Order #{order.id.slice(0, 8)}</p>
+                    <h1 className="text-2xl font-bold">{isDelivered ? 'Delivered 🎉' : 'Live order tracking'}</h1>
+                    <p className="text-sm text-muted-foreground">Placed on {format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="secondary" className="px-3 py-1 text-sm">
+                      {statusLabel}
+                    </Badge>
+                    <Badge className="px-3 py-1 text-sm" variant={isDelivered ? 'secondary' : 'default'}>
+                      {isDelivered ? 'Completed' : `ETA • ${estimatedTime}`}
+                    </Badge>
+                  </div>
+                </div>
 
-            <h1 className="text-2xl font-bold mb-2">
-              {isDelivered ? 'Order Delivered! 🎉' : 'Tracking Your Order'}
-            </h1>
-            <p className="text-muted-foreground">
-              Order #{order.id.slice(0, 8)} • {format(new Date(order.created_at), 'MMM d, h:mm a')}
-            </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4 backdrop-blur">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Timer className="w-4 h-4" />
+                      Status
+                    </div>
+                    <p className="mt-2 text-lg font-semibold">{statusLabel}</p>
+                    <p className="text-xs text-muted-foreground">ETA {estimatedTime}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4 backdrop-blur">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="w-4 h-4" />
+                      Items
+                    </div>
+                    <p className="mt-2 text-lg font-semibold">{itemsCount} item{itemsCount === 1 ? '' : 's'}</p>
+                    <p className="text-xs text-muted-foreground">Total {formatPrice(Number(order.total_amount))}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4 backdrop-blur">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapIcon className="w-4 h-4" />
+                      Destination
+                    </div>
+                    <p className="mt-2 text-lg font-semibold">{order.delivery_address.split(',')[0]}</p>
+                    <p className="text-xs text-muted-foreground">{order.delivery_address.split(',').slice(1, 3).join(', ')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-primary/20 bg-primary/5 shadow-xl shadow-primary/5">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Quick actions</h3>
+                </div>
+                <div className="space-y-3">
+                  <Link to="/orders" className="block">
+                    <Button variant="outline" className="w-full justify-between">
+                      View all orders
+                      <ArrowLeft className="w-4 h-4 rotate-180" />
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" className="w-full justify-between" asChild>
+                    <a href="tel:+91-0000000000">
+                      Call support
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  </Button>
+                  {!isDelivered && (
+                    <Button variant="secondary" className="w-full justify-between">
+                      Share live status
+                      <MapPin className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Live Map - Show when delivery partner is on the way */}
           <AnimatePresence>
-            {showMap && (
+            {showMap ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="mb-6"
+                className="mb-2"
               >
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden border border-primary/20 shadow-xl shadow-primary/5">
                   <CardContent className="p-0">
                     <div className="relative">
-                      {/* Map Header */}
                       <div className="absolute top-4 left-4 right-4 z-[1000] flex items-center justify-between">
-                        <div className="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                        <div className="bg-background/90 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg border border-border/70">
                           <div className="flex items-center gap-2">
                             <motion.div
-                              animate={{ scale: [1, 1.2, 1] }}
-                              transition={{ duration: 1, repeat: Infinity }}
-                              className="w-2.5 h-2.5 rounded-full bg-green-500"
+                              animate={{ scale: [1, 1.15, 1] }}
+                              transition={{ duration: 1.2, repeat: Infinity }}
+                              className="w-2.5 h-2.5 rounded-full bg-emerald-500"
                             />
-                            <span className="text-sm font-semibold">Live Tracking</span>
+                            <span className="text-sm font-semibold">Live tracking</span>
                           </div>
                         </div>
-                        <div className="bg-amber-500 text-white rounded-xl px-4 py-2 shadow-lg font-semibold text-sm">
-                          {estimatedTime}
+                        <div className="bg-primary text-primary-foreground rounded-xl px-4 py-2 shadow-lg font-semibold text-sm">
+                          ETA {estimatedTime}
                         </div>
                       </div>
 
-                      {/* Map */}
-                      <div className="h-[400px] rounded-xl overflow-hidden">
+                      <div className="h-[420px] rounded-xl overflow-hidden">
                         <LiveTrackingMap
                           restaurantLocation={restaurantLocation}
                           customerLocation={customerLocation}
@@ -417,23 +467,22 @@ export function OrderTrackingPage() {
                         />
                       </div>
 
-                      {/* Map Footer - Quick Stats */}
                       <div className="absolute bottom-4 left-4 right-4 z-[1000]">
-                        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg">
+                        <div className="bg-background/90 backdrop-blur-md rounded-xl p-4 shadow-lg border border-border/70">
                           <div className="grid grid-cols-3 gap-4 text-center">
                             <div>
                               <div className="text-xs text-muted-foreground">Restaurant</div>
                               <div className="text-sm font-semibold mt-1">
-                                {currentStep >= 5 ? '✓ Picked up' : 'Preparing'}
+                                {currentStep >= 5 ? 'Picked up' : 'Preparing'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-xs text-muted-foreground">Distance</div>
-                              <div className="text-sm font-semibold mt-1">~2.3 km</div>
+                              <div className="text-xs text-muted-foreground">Status</div>
+                              <div className="text-sm font-semibold mt-1">{statusLabel}</div>
                             </div>
                             <div>
                               <div className="text-xs text-muted-foreground">ETA</div>
-                              <div className="text-sm font-semibold mt-1 text-amber-600">{estimatedTime}</div>
+                              <div className="text-sm font-semibold mt-1 text-primary">{estimatedTime}</div>
                             </div>
                           </div>
                         </div>
@@ -442,206 +491,256 @@ export function OrderTrackingPage() {
                   </CardContent>
                 </Card>
               </motion.div>
+            ) : (
+              <Card className="border border-dashed border-border/80 bg-background/70 shadow-inner">
+                <CardContent className="p-6 flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="font-semibold">Live map will appear once your order is dispatched.</p>
+                    <p className="text-sm text-muted-foreground">We will start tracking as soon as a partner is assigned.</p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </AnimatePresence>
 
-          {/* Progress Tracker */}
-          <Card className="mb-6 overflow-hidden">
-            <CardContent className="p-6">
-              <div className="relative">
-                {trackingSteps.map((step, index) => {
-                  const isCompleted = index <= currentStep;
-                  const isCurrent = index === currentStep;
-                  const StepIcon = step.icon;
-
-                  return (
-                    <div key={step.status} className="relative">
-                      {/* Connection Line */}
-                      {index < trackingSteps.length - 1 && (
-                        <div 
-                          className={`absolute left-5 top-10 w-0.5 h-12 transition-colors duration-500 ${
-                            index < currentStep ? 'bg-primary' : 'bg-border'
-                          }`}
-                        />
-                      )}
-
-                      <div className="flex items-start gap-4 mb-6 last:mb-0">
-                        {/* Step Icon */}
-                        <motion.div
-                          initial={false}
-                          animate={{
-                            scale: isCurrent ? 1.1 : 1,
-                            backgroundColor: isCompleted ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
-                          }}
-                          className={`relative z-10 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                            isCompleted ? 'text-primary-foreground' : 'text-muted-foreground'
-                          }`}
-                        >
-                          {isCurrent && !isDelivered && (
-                            <motion.div
-                              className="absolute inset-0 rounded-full bg-primary/30"
-                              animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                            />
-                          )}
-                          <StepIcon className="w-5 h-5" />
-                        </motion.div>
-
-                        {/* Step Content */}
-                        <div className={`flex-1 pt-1 ${!isCompleted && 'opacity-50'}`}>
-                          <h3 className={`font-semibold ${isCurrent && 'text-primary'}`}>
-                            {step.label}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">{step.description}</p>
-                        </div>
-
-                        {/* Completed Check */}
-                        {isCompleted && index < currentStep && (
-                          <CheckCircle className="w-5 h-5 text-primary mt-2" />
-                        )}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2 overflow-hidden border border-border/80">
+              <CardContent className="p-6 space-y-6">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Timer className="w-4 h-4" />
+                    Journey
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    Current: {statusLabel}
+                  </Badge>
+                </div>
+                <div className="relative mt-2 overflow-x-auto pb-4">
+                  <div className="min-w-[720px]">
+                    <div className="relative">
+                      <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-emerald-100" />
+                      <div
+                        className="absolute left-0 top-1/2 h-0.5 bg-emerald-500 transition-all"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                      <div className="relative flex justify-between">
+                        {trackingSteps.map((step, index) => {
+                          const isCompleted = index <= currentStep;
+                          const isCurrent = index === currentStep;
+                          const StepIcon = step.icon;
+                          const isFuture = index > currentStep;
+                          return (
+                            <div key={step.status} className="flex flex-col items-center text-center w-full">
+                              <motion.div
+                                animate={isCurrent ? { scale: [1, 1.08, 1] } : {}}
+                                transition={{ duration: 1.1, repeat: isCurrent ? Infinity : 0 }}
+                                className={`flex h-11 w-11 items-center justify-center rounded-full border-[2px] shadow-sm transition-all ${
+                                  isCurrent
+                                    ? 'border-emerald-500 bg-white text-emerald-600 shadow-lg shadow-emerald-100 scale-110 -translate-y-1'
+                                    : isCompleted
+                                      ? 'border-emerald-400 bg-white text-emerald-600'
+                                      : 'border-border text-muted-foreground bg-muted/40'
+                                }`}
+                              >
+                                <StepIcon className="w-5 h-5" />
+                              </motion.div>
+                              <p
+                                className={`mt-2 text-xs font-semibold transition-colors ${
+                                  isCurrent
+                                    ? 'text-emerald-600'
+                                    : isFuture
+                                      ? 'text-muted-foreground/70'
+                                      : 'text-muted-foreground'
+                                }`}
+                              >
+                                {step.label}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
 
-          {/* Delivery Partner Card */}
-          <AnimatePresence>
-            {deliveryPartner && currentStep >= 4 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <Card className="mb-6 border-primary/20 bg-primary/5">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
-                          {deliveryPartner.profile?.avatar_url ? (
-                            <img 
-                              src={deliveryPartner.profile.avatar_url} 
-                              alt="Delivery Partner"
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <User className="w-7 h-7 text-primary" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            {deliveryPartner.profile?.first_name || 'Delivery'} {deliveryPartner.profile?.last_name || 'Partner'}
-                          </h3>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            {deliveryPartner.vehicle_type && (
-                              <span className="flex items-center gap-1">
-                                <Bike className="w-4 h-4" />
-                                {deliveryPartner.vehicle_type}
-                              </span>
-                            )}
-                            {deliveryPartner.vehicle_number && (
-                              <Badge variant="secondary">{deliveryPartner.vehicle_number}</Badge>
-                            )}
+                <div className="space-y-4">
+                  {trackingSteps.map((step, index) => {
+                    const isCompleted = index <= currentStep;
+                    const isCurrent = index === currentStep;
+                    const StepIcon = step.icon;
+                    return (
+                      <div
+                        key={step.status}
+                        className={`rounded-2xl border p-4 transition-all ${
+                          isCurrent
+                            ? 'border-primary/60 bg-primary/5 shadow-md'
+                            : isCompleted
+                              ? 'border-border bg-background'
+                              : 'border-border/70 bg-background/60 opacity-75'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`rounded-full p-2 ${isCurrent ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            <StepIcon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold">{step.label}</h4>
+                              {isCompleted && <CheckCircle className="w-4 h-4 text-primary" />}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{step.description}</p>
                           </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-                      {deliveryPartner.profile?.phone && (
-                        <a href={`tel:${deliveryPartner.profile.phone}`}>
-                          <Button size="icon" variant="outline" className="rounded-full">
-                            <Phone className="w-5 h-5" />
-                          </Button>
-                        </a>
-                      )}
-                    </div>
+            <AnimatePresence>
+              {deliveryPartner && currentStep >= 4 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card className="border border-primary/20 bg-primary/5 shadow-lg">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+                            {deliveryPartner.profile?.avatar_url ? (
+                              <img
+                                src={deliveryPartner.profile.avatar_url}
+                                alt="Delivery Partner"
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <User className="w-7 h-7 text-primary" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {deliveryPartner.profile?.first_name || 'Delivery'} {deliveryPartner.profile?.last_name || 'Partner'}
+                            </h3>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              {deliveryPartner.vehicle_type && (
+                                <span className="flex items-center gap-1">
+                                  <Bike className="w-4 h-4" />
+                                  {deliveryPartner.vehicle_type}
+                                </span>
+                              )}
+                              {deliveryPartner.vehicle_number && (
+                                <Badge variant="secondary">{deliveryPartner.vehicle_number}</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Live Location Indicator */}
-                    {currentStep >= 5 && currentStep < 6 && (
-                      <div className="mt-4 p-3 bg-background rounded-lg flex items-center gap-3">
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 1, repeat: Infinity }}
-                          className="w-3 h-3 rounded-full bg-green-500"
-                        />
-                        <span className="text-sm">
-                          {deliveryPartner.current_latitude && deliveryPartner.current_longitude
-                            ? 'Live location available'
-                            : 'On the way to you'}
-                        </span>
-                        <Navigation className="w-4 h-4 text-muted-foreground ml-auto" />
+                        {deliveryPartner.profile?.phone && (
+                          <a href={`tel:${deliveryPartner.profile.phone}`}>
+                            <Button size="icon" variant="outline" className="rounded-full">
+                              <Phone className="w-5 h-5" />
+                            </Button>
+                          </a>
+                        )}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
-          {/* Restaurant Info */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <ChefHat className="w-5 h-5 text-primary" />
-                Restaurant
-              </h3>
-              <div className="flex items-center gap-4">
-                {order.store?.logo_url ? (
-                  <img 
-                    src={order.store.logo_url} 
-                    alt={order.store.name}
-                    className="w-12 h-12 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                    <ChefHat className="w-6 h-6 text-muted-foreground" />
+                      {currentStep >= 5 && currentStep < 6 && (
+                        <div className="mt-2 p-3 bg-background rounded-lg flex items-center gap-3 border border-border/70">
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                            className="w-3 h-3 rounded-full bg-emerald-500"
+                          />
+                          <span className="text-sm">
+                            {deliveryPartner.current_latitude && deliveryPartner.current_longitude
+                              ? 'Live location active'
+                              : 'On the way to you'}
+                          </span>
+                          <Navigation className="w-4 h-4 text-muted-foreground ml-auto" />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="border border-border/80">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <ChefHat className="w-5 h-5 text-primary" />
+                  Restaurant
+                </h3>
+                <div className="flex items-center gap-4">
+                  {order.store?.logo_url ? (
+                    <img
+                      src={order.store.logo_url}
+                      alt={order.store.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      <ChefHat className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium">{order.store?.name || 'Restaurant'}</p>
+                    <p className="text-sm text-muted-foreground">{order.store?.address}</p>
+                    {order.store?.phone && (
+                      <a href={`tel:${order.store.phone}`} className="text-sm text-primary hover:underline">
+                        Call restaurant
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border/80">
+              <CardContent className="p-6 space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  Delivery address
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">{order.delivery_address}</p>
+                {order.notes && (
+                  <div className="rounded-lg bg-muted/50 border border-border/70 p-3 text-sm text-muted-foreground">
+                    Note: {order.notes}
                   </div>
                 )}
-                <div>
-                  <p className="font-medium">{order.store?.name || 'Restaurant'}</p>
-                  <p className="text-sm text-muted-foreground">{order.store?.address}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Delivery Address */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" />
-                Delivery Address
-              </h3>
-              <p className="text-muted-foreground">{order.delivery_address}</p>
-            </CardContent>
-          </Card>
-
-          {/* Order Summary */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Package className="w-5 h-5 text-primary" />
-                Order Summary
-              </h3>
-              <div className="space-y-3">
-                {order.order_items?.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {item.quantity}x {item.name}
-                    </span>
-                    <span>{formatPrice(Number(item.price_at_order) * item.quantity)}</span>
+            <Card className="border border-border/80">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  Order summary
+                </h3>
+                <div className="space-y-3">
+                  {order.order_items?.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {item.quantity}x {item.name}
+                      </span>
+                      <span>{formatPrice(Number(item.price_at_order) * item.quantity)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-border pt-3 flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span className="text-lg">{formatPrice(Number(order.total_amount))}</span>
                   </div>
-                ))}
-                <div className="border-t border-border pt-3 flex justify-between font-semibold">
-                  <span>Total</span>
-                  <span className="text-lg">{formatPrice(Number(order.total_amount))}</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Help Button */}
           <div className="mt-6 text-center">
             <Link to="/help">
               <Button variant="ghost" className="text-muted-foreground">
@@ -650,7 +749,7 @@ export function OrderTrackingPage() {
             </Link>
           </div>
         </FadeIn>
-      </div>
+      </main>
     </div>
   );
 }
