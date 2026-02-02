@@ -33,6 +33,7 @@ import { CartPage } from "./pages/customer/CartPage";
 import { CheckoutPage } from "./pages/customer/CheckoutPage";
 import { OrdersPage } from "./pages/customer/OrdersPage";
 import { OrderTrackingPage } from "./pages/customer/OrderTrackingPage";
+import { ReorderPage } from "./pages/customer/ReorderPage";
 import { ProfilePage } from "./pages/customer/ProfilePage";
 import { AddressesPage } from "./pages/customer/AddressesPage";
 import { PaymentsPage } from "./pages/customer/PaymentsPage";
@@ -127,6 +128,7 @@ function AppRoutes() {
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/orders" element={<OrdersPage />} />
       <Route path="/orders/:orderId/track" element={<OrderTrackingPage />} />
+      <Route path="/reorder" element={<ReorderPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/addresses" element={<AddressesPage />} />
       <Route path="/payments" element={<PaymentsPage />} />

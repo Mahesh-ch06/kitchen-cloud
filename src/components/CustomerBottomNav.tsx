@@ -9,7 +9,7 @@ const navItems = [
   { label: 'Food', href: '/menu', icon: UtensilsCrossed, highlight: true },
   { label: 'Bolt', href: '/menu?fast=true', icon: Zap, badge: '15 MIN' },
   { label: '99 store', href: '/menu?deal=99', icon: Store },
-  { label: 'Reorder', href: '/orders', icon: RotateCcw },
+  { label: 'Reorder', href: '/reorder', icon: RotateCcw },
   { label: 'Deal Rush', href: '/menu?deals=true', icon: Sparkles, badge: 'LIVE', badgeColor: 'bg-red-500' },
 ];
 
@@ -24,7 +24,7 @@ export function CustomerBottomNav() {
           {navItems.map((item) => {
             const isActive = location.pathname === item.href || 
               (item.href === '/menu' && location.pathname === '/menu' && item.highlight) ||
-              (item.href === '/orders' && location.pathname === '/orders');
+              (item.href === '/reorder' && location.pathname === '/reorder');
             const Icon = item.icon;
             const showCartBadge = item.label === 'Reorder' && itemCount > 0;
 

@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
-import { ChefHat, Package, Clock, CheckCircle, Truck, ArrowLeft, Navigation, Star } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChefHat, Package, Clock, CheckCircle, Truck, ArrowLeft, Navigation, Star, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCustomerOrders } from '@/hooks/useCustomerData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FadeIn, FadeInStagger, FadeInStaggerItem } from '@/components/ui/animated-container';
 import { format } from 'date-fns';
@@ -10,6 +11,7 @@ import { formatPrice } from '@/lib/currency';
 import { ReviewModal } from '@/components/customer/ReviewModal';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type OrderStatusType = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled';
 
@@ -26,9 +28,12 @@ const statusConfig: Record<OrderStatusType, { icon: typeof Package; label: strin
 export function OrdersPage() {
   const { isAuthenticated } = useAuth();
   const { data: orders, isLoading, refetch } = useCustomerOrders();
+  const { addToCart, clearCart } = useCart();
+  const navigate = useNavigate();
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
 
   // Check which orders have been reviewed
   useState(() => {
@@ -58,6 +63,78 @@ export function OrdersPage() {
     refetch();
   };
 
+  const handleReorder = async (order: any) => {
+    if (!order.order_items || order.order_items.length === 0) {
+      toast.error('This order has no items to reorder');
+      return;
+    }
+
+    setReorderingId(order.id);
+
+    try {
+      // Clear current cart first
+      clearCart();
+
+      // Fetch menu items for this store to get current prices and availability
+      const { data: menuItems } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('store_id', order.store_id)
+        .eq('is_available', true);
+
+      if (!menuItems) {
+        toast.error('Could not load menu items. Please try again.');
+        setReorderingId(null);
+        return;
+      }
+
+      // Add each item from the order to cart
+      let itemsAdded = 0;
+      let unavailableItems: string[] = [];
+
+      for (const orderItem of order.order_items) {
+        // Find the current menu item
+        const menuItem = menuItems.find(mi => mi.name === orderItem.name);
+        
+        if (menuItem) {
+          // Add to cart multiple times based on quantity
+          for (let i = 0; i < orderItem.quantity; i++) {
+            addToCart(menuItem, order.store_id);
+          }
+          itemsAdded++;
+        } else {
+          unavailableItems.push(orderItem.name);
+        }
+      }
+
+      if (itemsAdded > 0) {
+        // Show success message
+        if (unavailableItems.length > 0) {
+          toast.warning(`${itemsAdded} items added to cart. ${unavailableItems.length} items are no longer available.`, {
+            description: unavailableItems.length <= 3 
+              ? `Unavailable: ${unavailableItems.join(', ')}` 
+              : `${unavailableItems.length} items unavailable`,
+          });
+        } else {
+          toast.success(`🎉 Order added to cart!`, {
+            description: `${itemsAdded} items from ${order.store?.name || 'your order'}`,
+          });
+        }
+        // Navigate to cart page
+        navigate('/cart');
+      } else {
+        toast.error('None of the items from this order are currently available.', {
+          description: 'The menu may have changed since your last order.',
+        });
+      }
+    } catch (error) {
+      console.error('Error reordering:', error);
+      toast.error('Failed to reorder. Please try again.');
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -73,10 +150,10 @@ export function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-safe-area-bottom">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
               <ChefHat className="w-6 h-6 text-primary-foreground" />
@@ -85,18 +162,18 @@ export function OrdersPage() {
           </Link>
           
           <Link to="/menu">
-            <Button variant="ghost">Browse Menu</Button>
+            <Button variant="ghost" className="text-sm md:text-base">Browse Menu</Button>
           </Link>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8 max-w-3xl">
+      <div className="container mx-auto px-4 md:px-6 py-8 max-w-3xl">
         <Link to="/menu" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to menu
         </Link>
 
-        <h1 className="text-3xl font-bold mb-8">Your Orders</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-8">Your Orders</h1>
 
         {isLoading ? (
           <div className="space-y-4">
@@ -154,11 +231,22 @@ export function OrdersPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                      {/* Reorder Button */}
+                      <Button
+                        onClick={() => handleReorder(order)}
+                        disabled={reorderingId === order.id}
+                        variant="outline"
+                        className="flex-1 h-11"
+                      >
+                        <RotateCcw className={`w-4 h-4 mr-2 ${reorderingId === order.id ? 'animate-spin' : ''}`} />
+                        {reorderingId === order.id ? 'Adding...' : 'Reorder'}
+                      </Button>
+
                       {/* Track Order Button */}
                       {status.canTrack && (
                         <Link to={`/orders/${order.id}/track`} className="flex-1">
-                          <Button variant="outline" className="w-full">
+                          <Button variant="outline" className="w-full h-11">
                             <Navigation className="w-4 h-4 mr-2" />
                             Track Order
                           </Button>

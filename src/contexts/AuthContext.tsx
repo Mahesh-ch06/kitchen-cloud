@@ -25,6 +25,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  loginWithOtp: (userId: string, email: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,10 +80,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentSession?.user) {
       const userData = await fetchUserProfile(currentSession.user.id);
       setUser(userData);
+    } else {
+      // Check for OTP verified user
+      const otpVerifiedData = localStorage.getItem('otp_verified_user');
+      if (otpVerifiedData) {
+        try {
+          const parsed = JSON.parse(otpVerifiedData);
+          if (parsed.expiresAt > Date.now()) {
+            const userData = await fetchUserProfile(parsed.userId);
+            if (userData) {
+              setUser(userData);
+            }
+          } else {
+            localStorage.removeItem('otp_verified_user');
+          }
+        } catch (e) {
+          localStorage.removeItem('otp_verified_user');
+        }
+      }
     }
   };
 
   useEffect(() => {
+    // Check for OTP verified user first
+    const checkOtpUser = async () => {
+      const otpVerifiedData = localStorage.getItem('otp_verified_user');
+      if (otpVerifiedData) {
+        try {
+          const parsed = JSON.parse(otpVerifiedData);
+          if (parsed.expiresAt > Date.now() && parsed.userId) {
+            // Use RPC function to get profile (bypasses RLS)
+            const { data: profileData, error } = await supabase.rpc(
+              'get_user_profile_for_otp' as any,
+              { user_uuid: parsed.userId }
+            );
+            
+            console.log('OTP user profile:', { profileData, error });
+            
+            if (profileData && Array.isArray(profileData) && profileData.length > 0) {
+              const profile = profileData[0];
+              const userData: User = {
+                id: profile.id,
+                email: profile.email || parsed.email,
+                name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || '',
+                firstName: profile.first_name || undefined,
+                lastName: profile.last_name || undefined,
+                phone: profile.phone || undefined,
+                avatarUrl: profile.avatar_url || undefined,
+                role: (profile.user_role as UserRole) || 'customer',
+              };
+              setUser(userData);
+              setIsLoading(false);
+              return true;
+            }
+          } else {
+            localStorage.removeItem('otp_verified_user');
+          }
+        } catch (e) {
+          console.error('Error checking OTP user:', e);
+          localStorage.removeItem('otp_verified_user');
+        }
+      }
+      return false;
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
@@ -102,8 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check current session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    // THEN check current session or OTP user
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
       if (currentSession?.user) {
         fetchUserProfile(currentSession.user.id).then((userData) => {
@@ -111,7 +172,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
         });
       } else {
-        setIsLoading(false);
+        // Check for OTP verified user if no session
+        const otpUserFound = await checkOtpUser();
+        if (!otpUserFound) {
+          setIsLoading(false);
+        }
       }
     });
 
@@ -175,8 +240,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    // Clear OTP verified user
+    localStorage.removeItem('otp_verified_user');
     setUser(null);
     setSession(null);
+  };
+
+  // Login with OTP - set user directly without Supabase session
+  const loginWithOtp = async (userId: string, email: string): Promise<boolean> => {
+    try {
+      // Get full profile using RPC
+      const { data: profileData, error } = await supabase.rpc(
+        'get_user_profile_for_otp' as any,
+        { user_uuid: userId }
+      );
+
+      console.log('loginWithOtp profile:', { profileData, error });
+
+      if (profileData && Array.isArray(profileData) && profileData.length > 0) {
+        const profile = profileData[0];
+        const userData: User = {
+          id: profile.id,
+          email: profile.email || email,
+          name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || email,
+          firstName: profile.first_name || undefined,
+          lastName: profile.last_name || undefined,
+          phone: profile.phone || undefined,
+          avatarUrl: profile.avatar_url || undefined,
+          role: (profile.user_role as UserRole) || 'customer',
+        };
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('otp_verified_user', JSON.stringify({
+          email: email,
+          userId: userId,
+          verifiedAt: Date.now(),
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+        }));
+        
+        setUser(userData);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('loginWithOtp error:', e);
+      return false;
+    }
   };
 
   return (
@@ -190,6 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup, 
         logout,
         refreshUser,
+        loginWithOtp,
       }}
     >
       {children}

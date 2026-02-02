@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChefHat, Mail, Lock, User, ArrowLeft, Eye, EyeOff, Phone } from 'lucide-react';
+import { ChefHat, Mail, Lock, User, ArrowLeft, Eye, EyeOff, Phone, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sendWelcomeEmail, generateOTP, sendOTPEmail } from '@/lib/emailService';
+import { supabase } from '@/integrations/supabase/client';
 
 export function CustomerSignup() {
   const [name, setName] = useState('');
@@ -15,12 +17,101 @@ export function CustomerSignup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationOtp, setVerificationOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const handleSendVerification = async () => {
+    if (!email || !email.includes('@')) {
+      toast({ title: 'Invalid email', description: 'Please enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    const otpCode = generateOTP();
+    
+    // Store OTP in Supabase database
+    const { error: dbError } = await supabase
+      .from('otp_verification')
+      .insert([{ email: email, otp: otpCode }]);
+
+    if (dbError) {
+      console.error('DB Error:', dbError);
+      toast({ title: 'Error', description: 'Failed to generate verification code.', variant: 'destructive' });
+      return;
+    }
+
+    const result = await sendOTPEmail(email, otpCode, name || 'User');
+
+    if (result.success) {
+      setOtpSent(true);
+      setCountdown(60);
+      
+      const interval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      toast({ title: 'Verification code sent!', description: 'Check your email for the 6-digit code.' });
+    } else {
+      // Cleanup database if email failed
+      await supabase.from('otp_verification').delete().eq('email', email).eq('otp', otpCode);
+      toast({ title: 'Failed to send code', description: 'Please try again.', variant: 'destructive' });
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!verificationOtp || verificationOtp.length !== 6) {
+      toast({ title: 'Invalid code', description: 'Please enter the 6-digit code.', variant: 'destructive' });
+      return;
+    }
+
+    // Verify OTP from Supabase database
+    const { data: otpData, error: otpError } = await supabase
+      .from('otp_verification')
+      .select('*')
+      .eq('email', email)
+      .eq('otp', verificationOtp)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (otpError || !otpData || otpData.length === 0) {
+      toast({ title: 'Invalid code', description: 'The code is incorrect.', variant: 'destructive' });
+      return;
+    }
+
+    // Check if OTP expired (10 minutes)
+    const otpTime = new Date(otpData[0].created_at);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - otpTime.getTime()) / (1000 * 60);
+
+    if (diffMinutes > 10) {
+      await supabase.from('otp_verification').delete().eq('email', email);
+      toast({ title: 'Code expired', description: 'Please request a new code.', variant: 'destructive' });
+      return;
+    }
+
+    // Valid OTP - delete it and mark email as verified
+    await supabase.from('otp_verification').delete().eq('email', email);
+    setEmailVerified(true);
+    toast({ title: 'Email verified!', description: 'You can now complete your registration.' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!emailVerified) {
+      toast({ title: 'Email not verified', description: 'Please verify your email first.', variant: 'destructive' });
+      return;
+    }
     
     if (password !== confirmPassword) {
       toast({ title: 'Passwords do not match', variant: 'destructive' });
@@ -29,13 +120,23 @@ export function CustomerSignup() {
     
     setIsLoading(true);
     
-    const success = await signup(email, password, name);
+    const result = await signup(email, password, name);
     
-    if (success) {
-      toast({ title: 'Account created!', description: 'Welcome to CloudKitchen.' });
+    if (result.success) {
+      // Send welcome email (non-blocking)
+      sendWelcomeEmail(email, name).catch(err => {
+        console.error('Failed to send welcome email:', err);
+        // Don't block signup if email fails
+      });
+      
+      toast({ 
+        title: 'Account created!', 
+        description: 'Welcome to CloudKitchen! You can now login with password or OTP.',
+        duration: 5000,
+      });
       navigate('/menu');
     } else {
-      toast({ title: 'Signup failed', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: 'Signup failed', description: result.error || 'Please try again.', variant: 'destructive' });
     }
     
     setIsLoading(false);
@@ -75,19 +176,66 @@ export function CustomerSignup() {
             
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-12"
-                  required
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-12"
+                    required
+                    disabled={emailVerified}
+                  />
+                </div>
+                {!emailVerified && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendVerification}
+                    disabled={!email || otpSent}
+                    className="h-12"
+                  >
+                    {otpSent ? (countdown > 0 ? `${countdown}s` : 'Resend') : 'Verify'}
+                  </Button>
+                )}
+                {emailVerified && (
+                  <Button type="button" variant="outline" className="h-12 bg-green-50 text-green-600 border-green-200" disabled>
+                    ✓ Verified
+                  </Button>
+                )}
               </div>
             </div>
+            
+            {otpSent && !emailVerified && (
+              <div className="space-y-2">
+                <Label htmlFor="verification-code">Verification Code</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="verification-code"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={verificationOtp}
+                      onChange={(e) => setVerificationOtp(e.target.value)}
+                      className="pl-10 h-12"
+                      maxLength={6}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleVerifyEmail}
+                    disabled={verificationOtp.length !== 6}
+                    className="h-12"
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="phone">Phone (optional)</Label>
